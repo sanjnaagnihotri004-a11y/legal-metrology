@@ -1,0 +1,43 @@
+
+rules:
+  - rule_id: "LM-R1"
+    clause: "Rule 6(1)(a)"
+    title: "Manufacturer / packer / importer name and address"
+    description: "Name and complete address of the manufacturer, packer or importer, including PIN code, must be declared."
+    severity: "critical"
+    active: true
+
+  - rule_id: "LM-R2"
+    clause: "Rule 6(1)(c)"
+    title: "Net quantity declaration"
+    description: "Net quantity must be declared in a standard unit of weight, measure or number."
+    severity: "critical"
+    active: true
+
+  - rule_id: "LM-R3"
+    clause: "Rule 6(1)(e)"
+    title: "MRP declaration"
+    description: "Maximum Retail Price must be declared, inclusive of all taxes."
+    severity: "critical"
+    active: true
+
+  - rule_id: "LM-R4"
+    clause: "Rule 6(1)(d)"
+    title: "Manufacture/packing date"
+    description: "Month and year of manufacture, packing or import must be declared."
+    severity: "major"
+    active: true
+
+  - rule_id: "LM-R5"
+    clause: "Rule 6(1)(f)"
+    title: "Consumer care details"
+    description: "Name, address, telephone number or email of the person to contact for consumer complaints must be declared."
+    severity: "major"
+    active: true
+
+  - rule_id: "LM-R6"
+    clause: "Rule 7 (verify sub-rule)"
+    title: "Net quantity font height"
+    description: "Height of the net quantity numerals must meet the minimum prescribed for the pack size."
+    severity: "major"
+    active: true
