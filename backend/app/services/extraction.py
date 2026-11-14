@@ -13,7 +13,7 @@ MONTH = (
 
 # ---------- patterns ----------
 
-PIN_RE = re.compile(r"\b[1-9]\d{5}\b")
+PIN_RE = re.compile(r"\b[1-9]\d{2}\s?\d{3}\b")
 
 # "Mfd. by", "Manufactured & Marketed by", "Packed by", "Manufacturer:" ...
 MAKER_RE = re.compile(

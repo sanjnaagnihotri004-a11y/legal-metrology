@@ -56,4 +56,5 @@ def read_label(image_bytes: bytes) -> dict:
         "confidence": round(mean(l["confidence"] for l in lines), 2),
         "width": width,
         "height": height,
+        "image": pic,
     }

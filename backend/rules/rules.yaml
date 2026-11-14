@@ -1,4 +1,3 @@
-
 rules:
   - rule_id: "LM-R1"
     clause: "Rule 6(1)(a)"
@@ -36,8 +35,18 @@ rules:
     active: true
 
   - rule_id: "LM-R6"
-    clause: "Rule 7 (verify sub-rule)"
-    title: "Net quantity font height"
-    description: "Height of the net quantity numerals must meet the minimum prescribed for the pack size."
+    clause: "Rule 7(2)"
+    title: "Net quantity numeral height"
+    description: "Height of the net quantity numerals must meet the minimum prescribed for the area of the principal display panel."
     severity: "major"
     active: true
+
+# Minimum height of numerals and letters by area of the principal display panel (Rule 7 table).
+# normal_mm = normal printing, molded_mm = blown/formed/moulded text. max_area_cm2: null = no upper limit.
+# SOURCE: secondary website, NOT the gazette. VERIFY every row before final submission.
+font_height_table:
+  - {max_area_cm2: 50,   normal_mm: 1.0, molded_mm: 2.0}
+  - {max_area_cm2: 100,  normal_mm: 1.5, molded_mm: 3.0}
+  - {max_area_cm2: 500,  normal_mm: 2.5, molded_mm: 4.0}
+  - {max_area_cm2: 2500, normal_mm: 4.0, molded_mm: 6.0}
+  - {max_area_cm2: null, normal_mm: 6.0, molded_mm: 6.0}
