@@ -41,10 +41,12 @@ def check_r2(f, ctx):
     n = f["net_quantity"]
     if not n["found"]:
         return "fail", "Net quantity not found"
+    if n["quantity"] is None or n["unit"] is None:
+        return "fail", "Net quantity found but its number and unit could not be read"
     if n["unit"] not in STANDARD_UNITS:
         return "fail", f"Unit '{n['unit']}' is not a standard metric unit"
-    if not n["quantity"] or n["quantity"] <= 0:
-        return "fail", "Net quantity value is missing or zero"
+    if n["quantity"] <= 0:
+        return "fail", "Net quantity value is zero"
     return "pass", f"Net quantity declared: {n['quantity']:g} {n['unit']}"
 
 

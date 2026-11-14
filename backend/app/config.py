@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_expire_minutes: int = 60
     max_upload_mb: int = 10
+    storage_dir: str = "storage"
 
     model_config = SettingsConfigDict(env_file=".env")
 

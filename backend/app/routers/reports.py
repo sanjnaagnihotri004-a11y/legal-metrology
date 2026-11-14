@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy.orm import Session
 
+from app.db import get_db
 from app.deps import get_current_user
-from app.mock_data import store
+from app.errors import AppError
 from app.models import User
-from app.routers.evidence import FILES
 from app.schemas.common import ReportFormat
-from app.services import reports
+from app.services import reports, scan_service, storage
 
 router = APIRouter(tags=["reports"])
 
@@ -20,20 +21,29 @@ MEDIA_TYPES = {
 def download_report(
     scan_id: int,
     fmt: ReportFormat = Query(..., alias="format"),
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    entry = store.get_entry(scan_id, user)
-    scan = entry["scan"]
-    image = entry["image"] or store.SAMPLE_IMAGE.read_bytes()
-    annotated = store.SAMPLE_ANNOTATED.read_bytes()
-    evidence_files = {e["id"]: FILES[e["id"]] for e in scan["evidence"] if e["id"] in FILES}
+    scan = scan_service.get_visible(db, scan_id, user)
+    data = scan_service.scan_to_dict(db, scan)
 
-    if fmt == "pdf":
-        content = reports.build_pdf(scan, image, annotated, evidence_files)
-    elif fmt == "docx":
-        content = reports.build_docx(scan, image, annotated, evidence_files)
+    if fmt == "csv":
+        content = reports.build_csv(data)
     else:
-        content = reports.build_csv(scan)
+        try:
+            image = storage.read(scan.image_path)
+            annotated = storage.read(scan.annotated_path)
+        except (FileNotFoundError, TypeError):
+            raise AppError(404, "NOT_FOUND", "Scan images not found")
+        evidence_files = {}
+        for e in scan.evidence:
+            try:
+                evidence_files[e.id] = {"data": storage.read(e.file_path),
+                                        "content_type": storage.content_type(e.file_path)}
+            except FileNotFoundError:
+                continue
+        builder = reports.build_pdf if fmt == "pdf" else reports.build_docx
+        content = builder(data, image, annotated, evidence_files)
 
     return Response(
         content=content,

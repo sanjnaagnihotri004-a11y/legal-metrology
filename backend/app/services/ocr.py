@@ -1,4 +1,5 @@
 import io
+import threading
 from statistics import mean
 
 import numpy as np
@@ -8,6 +9,7 @@ from rapidocr import RapidOCR
 from app.errors import AppError
 
 _engine = None
+_lock = threading.Lock()
 
 
 def _get_engine():
@@ -29,7 +31,8 @@ def read_label(image_bytes: bytes) -> dict:
     width, height = pic.size
     bgr = np.array(pic)[:, :, ::-1].copy()  # RapidOCR expects BGR colour order
 
-    result = _get_engine()(bgr)
+    with _lock:   # the OCR engine is not safe to share between simultaneous requests
+        result = _get_engine()(bgr)
     texts = getattr(result, "txts", None)
 
     lines = []

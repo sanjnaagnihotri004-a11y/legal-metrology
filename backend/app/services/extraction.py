@@ -283,3 +283,14 @@ def extract_fields(lines: list[dict]) -> dict:
         "mfg_date": _find_mfg_date(lines),
         "consumer_care": _find_consumer_care(lines),
     }
+
+QTY_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(" + UNIT + "|" + NONSTANDARD + r")\b", re.IGNORECASE)
+
+
+def parse_quantity(text: str):
+    """'Net Wt. 200 g' or just '200 g' -> (200.0, 'g'). Returns None if no quantity is found."""
+    m = QTY_RE.search(text)
+    if not m:
+        return None
+    raw_unit = m.group(2).lower().replace(" ", "").replace(".", "")
+    return _to_number(m.group(1)), UNIT_MAP.get(raw_unit, raw_unit)

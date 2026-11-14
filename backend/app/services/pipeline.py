@@ -29,4 +29,5 @@ def analyze(image_bytes: bytes, label_width_mm: float) -> dict:
         "image_height_px": ocr["height"],
         "annotated_image": annotate.annotate(ocr["image"], results),
         "font_info": font_info,
+        "image": ocr["image"],
     }
