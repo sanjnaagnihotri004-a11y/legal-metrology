@@ -70,6 +70,7 @@ def scan_to_dict(db: Session, scan: Scan) -> dict:
         "corrected": scan.corrected,
         "notes": scan.notes,
         "label_width_mm": scan.label_width_mm,
+        "scale_source": scan.scale_source,        
         "image_width_px": scan.image_width_px,
         "image_height_px": scan.image_height_px,
         "image_url": f"/scans/{scan.id}/image",
@@ -117,7 +118,7 @@ def _jpeg(pic: Image.Image) -> bytes:
 
 
 def create_scan(db: Session, user: User, *, image_bytes: bytes, product_name: str, brand: str,
-                category: str, label_width_mm: float, barcode: str | None, notes: str | None) -> dict:
+            category: str, label_width_mm: float | None, barcode: str | None, notes: str | None) -> dict:               
     analysis = pipeline.analyze(image_bytes, label_width_mm)   # may raise OCR_NO_TEXT
     try:
         product = _find_or_create_product(db, product_name, brand, category, barcode)
@@ -128,7 +129,8 @@ def create_scan(db: Session, user: User, *, image_bytes: bytes, product_name: st
             score=analysis["score"],
             corrected=False,
             notes=notes,
-            label_width_mm=label_width_mm,
+            label_width_mm=analysis["label_width_mm"],
+            scale_source=analysis["scale_source"],
             image_width_px=analysis["image_width_px"],
             image_height_px=analysis["image_height_px"],
             ocr_text=analysis["ocr_text"],

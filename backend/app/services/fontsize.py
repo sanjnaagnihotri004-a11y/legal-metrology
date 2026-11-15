@@ -88,15 +88,19 @@ def _numeral_line(net: dict, lines: list[dict]) -> dict | None:
     return inside[0]
 
 
-def apply_font_check(fields: dict, lines: list[dict], image: Image.Image, label_width_mm: float) -> dict:
-    """Fills font_height_mm and min_font_height_mm in fields['net_quantity'] (in place)."""
+def apply_font_check(fields: dict, lines: list[dict], image: Image.Image, scale: float | None) -> dict:
+    """Fills font_height_mm and min_font_height_mm in fields['net_quantity'] (in place).
+    scale = millimetres per pixel, or None when the photo has no scale reference."""
     info = {"mm_per_px": None, "pdp_area_cm2": None, "note": None}
     net = fields["net_quantity"]
     if not net["found"]:
         info["note"] = "Net quantity not found, so numeral height could not be checked"
         return info
+    if scale is None:
+        info["note"] = ("No scale reference found: place a bank card flat beside the label "
+                        "and retake the photo to check numeral height")
+        return info
 
-    scale = mm_per_px(label_width_mm, image.size[0])
     area = estimate_pdp_area_cm2(lines, scale)
     info["mm_per_px"] = round(scale, 5)
     info["pdp_area_cm2"] = round(area, 1)

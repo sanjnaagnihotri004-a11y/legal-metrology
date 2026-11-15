@@ -5,12 +5,13 @@ from pathlib import Path
 from app.services.pipeline import analyze
 
 path = Path(sys.argv[1] if len(sys.argv) > 1 else "app/mock_data/sample.jpg")
-label_width_mm = float(sys.argv[2]) if len(sys.argv) > 2 else 120.0
+label_width_mm = float(sys.argv[2]) if len(sys.argv) > 2 else None
 
 result = analyze(path.read_bytes(), label_width_mm)
 
 print(f"\nStatus: {result['status']}   Score: {result['score']}   Violations: {result['violations_count']}")
 print("Font info:", result["font_info"])
+print("Scale source:", result["scale_source"])
 nq = result["extracted_fields"]["net_quantity"]
 print("Net quantity:", nq["value"], "| height mm:", nq["font_height_mm"], "| minimum mm:", nq["min_font_height_mm"])
 print("\n--- Rules ---")

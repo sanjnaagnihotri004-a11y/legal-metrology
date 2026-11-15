@@ -31,7 +31,7 @@ def create_scan(
     product_name: str = Form(..., min_length=1, max_length=120),
     brand: str = Form(..., min_length=1, max_length=80),
     category: Category = Form(...),
-    label_width_mm: float = Form(..., gt=0, le=1000),
+    label_width_mm: float | None = Form(None, gt=0, le=1000),
     barcode: str | None = Form(None),
     notes: str | None = Form(None, max_length=500),
     db: Session = Depends(get_db),

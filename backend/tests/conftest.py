@@ -62,6 +62,8 @@ def fake_ocr(monkeypatch):
             "image_width_px": pic.size[0], "image_height_px": pic.size[1],
             "image": pic, "annotated_image": annotate.annotate(pic, results),
             "font_info": {"mm_per_px": None, "pdp_area_cm2": None, "note": None},
+            "label_width_mm": label_width_mm,
+            "scale_source": "manual" if label_width_mm else "none",
         }
 
     monkeypatch.setattr(pipeline, "analyze", fake_analyze)

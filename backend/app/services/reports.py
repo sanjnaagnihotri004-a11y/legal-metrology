@@ -41,7 +41,9 @@ def _info_rows(scan):
         ("Barcode", p["barcode"] or "-"),
         ("Inspector", scan["inspector"]["name"]),
         ("Scanned at", _when(scan["created_at"])),
-        ("Label width (mm)", scan["label_width_mm"]),
+        ("Label width (mm)", round(scan["label_width_mm"], 1) if scan["label_width_mm"] else "Not available"),
+        ("Scale source", {"manual": "Entered by inspector", "card": "Bank card in photo",
+                          "none": "None (font check skipped)"}.get(scan.get("scale_source"), "-")),
         ("Corrected manually", "Yes" if scan["corrected"] else "No"),
         ("Notes", scan["notes"] or "-"),
     ]

@@ -22,7 +22,7 @@ def _fit(draw, text: str, font, max_width: float) -> str:
     return text + "..."
 
 
-def annotate(image: Image.Image, results: list[dict]) -> bytes:
+def annotate(image: Image.Image, results: list[dict], reference_box: list[int] | None = None) -> bytes:
     """Draws a box per rule (green pass, red fail, orange needs-review).
     Problems with nothing to point at (a missing declaration) go in a banner above the photo."""
     pic = image.convert("RGB")
@@ -69,7 +69,17 @@ def annotate(image: Image.Image, results: list[dict]) -> bytes:
             label_y = bottom + 2
         d.rectangle([x1, label_y, x1 + text_w + 8, label_y + size + 4], fill=color)
         d.text((x1 + 4, label_y + 1), label, fill="white", font=font)
-
+    if reference_box:                      # the card that gave the scale, in blue
+        x1, y1, x2, y2 = reference_box
+        top, bottom = y1 + banner_h, y2 + banner_h
+        blue = (40, 110, 220)
+        d.rectangle([x1, top, x2, bottom], outline=blue, width=line_width)
+        label_y = top - size - 4
+        if label_y < banner_h:
+            label_y = bottom + 2
+        text_w = d.textlength("SCALE: card", font=font)
+        d.rectangle([x1, label_y, x1 + text_w + 8, label_y + size + 4], fill=blue)
+        d.text((x1 + 4, label_y + 1), "SCALE: card", fill="white", font=font)
     buf = io.BytesIO()
     canvas.save(buf, format="JPEG", quality=88)
     return buf.getvalue()

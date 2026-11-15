@@ -23,7 +23,8 @@ class Scan(Base):
     corrected: Mapped[bool] = mapped_column(Boolean, default=False)
     notes: Mapped[str | None] = mapped_column(Text)
 
-    label_width_mm: Mapped[float] = mapped_column(Float)
+    label_width_mm: Mapped[float | None] = mapped_column(Float)
+    scale_source: Mapped[str | None] = mapped_column(String(20))
     image_width_px: Mapped[int | None] = mapped_column()
     image_height_px: Mapped[int | None] = mapped_column()
     image_path: Mapped[str | None] = mapped_column(String(500))

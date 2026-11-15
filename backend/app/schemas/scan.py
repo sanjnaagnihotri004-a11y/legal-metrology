@@ -73,7 +73,8 @@ class Scan(BaseModel):
     score: float
     corrected: bool = False
     notes: str | None = None
-    label_width_mm: float
+    label_width_mm: float | None = None
+    scale_source: str | None = None
     image_width_px: int | None = None
     image_height_px: int | None = None
     image_url: str
