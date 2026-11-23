@@ -1,4 +1,3 @@
-
 """Turns OCR text lines into the 5 declarations of the API contract.
 
 A "line" is a dict: {"text": str, "bbox": [x1, y1, x2, y2], "confidence": float}
@@ -13,12 +12,14 @@ MONTH = (
 
 # ---------- patterns ----------
 
+# 6-digit PIN code, often printed with a space ("400 099")
 PIN_RE = re.compile(r"\b[1-9]\d{2}\s?\d{3}\b")
 
-# "Mfd. by", "Manufactured & Marketed by", "Packed by", "Manufacturer:" ...
+# "Mfd. by", "Manufactured & Marketed by", "Packed by", "Made in India by", "Manufacturer:" ...
 MAKER_RE = re.compile(
     r"\b(?:manufactured|mfd|mfg|packed|pkd|marketed|mktd|imported|distributed|produced)\b\.?"
     r"(?:\s*(?:&|and)\s*\w+)?\s*(?:by|at)\b"
+    r"|\bmade\s+(?:in\s+[a-z]+\s+)?by\b"
     r"|\b(?:manufacturer|packer|importer|marketer)\b",
     re.IGNORECASE,
 )
@@ -49,9 +50,11 @@ UNIT_MAP = {
 }
 STANDARD_UNITS = set(UNIT_MAP.values())
 
+# "Net Wt. 200 g", "Net Vol. when packed 100ml", "NET QUANTITY: 1.5 L"
 NET_RE = re.compile(
     r"\bnet\s*(?:wt|weight|qty|quantity|contents?|vol|volume|measure)?\s*\.?\s*"
-    r"(?:\(?e\)?\s*)?[:\-=]?\s*(\d+(?:[.,]\d+)?)\s*(" + UNIT + "|" + NONSTANDARD + r")\b",
+    r"(?:\(?e\)?\s*)?(?:when\s*packed|at\s*the\s*time\s*of\s*packing)?\s*[:\-=]?\s*"
+    r"(\d+(?:[.,]\d+)?)\s*(" + UNIT + "|" + NONSTANDARD + r")\b",
     re.IGNORECASE,
 )
 
@@ -61,9 +64,16 @@ MRP_RE = re.compile(
 )
 # "Inclusive of all taxes", "Incl. of all taxes", "Inc. all taxes", "Inclusive of GST",
 # and common OCR slips such as "INCL OF LL TAXES"
-INCL_TAX_RE = re.compile(
-    r"\binc(?:l\w*)?\.?\s*(?:of\s*)?(?:a?l{1,2}\s*)?(?:taxes|tax|gst)", re.IGNORECASE
-)
+class _TaxWording:
+    """Behaves like a compiled regex (it has .search) but ignores spaces, dots and brackets, so OCR
+    slips such as 'Inclu sive of all taxes' or 'Inclusve of all taxes' still match."""
+    _pattern = re.compile(r"inc[a-z]{0,10}(?:of)?a?l{0,2}(?:taxes|tax|gst)")
+
+    def search(self, text):
+        return self._pattern.search(re.sub(r"[^a-z]", "", (text or "").lower()))
+
+
+INCL_TAX_RE = _TaxWording()
 TAX_HINT_RE = re.compile(r"tax|incl|gst", re.IGNORECASE)
 
 # A price printed without the word MRP next to it:  "289/-"   or   "₹ 289"
@@ -73,6 +83,13 @@ PRICE_CURRENCY_RE = re.compile(
     r"(?:\u20b9|\brs\.?|\binr)\s*\d[\d,]*(?:\.\d{1,2})?(?![\d.,])(?!\s*/\s*(?:g|gm|kg|ml|l|100|unit)\b)",
     re.IGNORECASE,
 )
+# A bare two-decimal amount such as "110.00" (OCR often loses the rupee symbol).
+# Only used when the label also has an "MRP (incl. of all taxes)" footnote.
+PRICE_DECIMAL_RE = re.compile(
+    r"(?<![\d.,/])\d{1,5}\.\d{2}(?![\d.,])(?!\s*/\s*(?:g|gm|kg|ml|l|100|unit)\b)",
+    re.IGNORECASE,
+)
+MRP_WORD_RE = re.compile(r"\bm\.?\s?r\.?\s?p\b", re.IGNORECASE)
 
 DATE_KEY_RE = re.compile(
     r"\b(?:mfd|mfg|pkd|manufactured|manufacturing|manufacture|packed|packing|packaged|imported|import)\b",
@@ -124,12 +141,12 @@ def _make(lines: list[dict], indices: list[int]) -> dict:
     }
 
 
-def _windows(lines: list[dict]):
-    """Each single line first, then each pair of neighbouring lines (OCR often splits one phrase)."""
-    for i in range(len(lines)):
-        yield [i], lines[i]["text"]
-    for i in range(len(lines) - 1):
-        yield [i, i + 1], lines[i]["text"] + " " + lines[i + 1]["text"]
+def _windows(lines: list[dict], max_lines: int = 2):
+    """Single lines first, then runs of 2 (or 3) neighbouring lines: OCR often splits one phrase."""
+    for size in range(1, max_lines + 1):
+        for i in range(len(lines) - size + 1):
+            indices = list(range(i, i + size))
+            yield indices, " ".join(lines[j]["text"] for j in indices)
 
 
 def _to_number(text: str) -> float:
@@ -139,6 +156,100 @@ def _to_number(text: str) -> float:
         text = text.replace(",", ".")         # 1,5 -> 1.5
     return float(text)
 
+# ---------- table layouts: a heading with its value printed underneath ----------
+# Shop stickers and coding bands often look like:
+#     MRP (incl. of all taxes)     MFG. DATE      EXPIRY DATE
+#     70.00                        SEPT.2026      AUG.2027
+
+MRP_HEAD_RE = re.compile(r"\bm\.?\s?r\.?\s?p\b|maximum\s+retail\s+price", re.IGNORECASE)
+_NAMED_DATE = re.compile(r"\b" + MONTH + r"\b[\s.,'/\-]*(\d{4}|\d{2})\b", re.IGNORECASE)
+_NUM_DATE = re.compile(r"(?<![\d.])(?:[0-3]?\d\s*[/\-.]\s*)?(0?[1-9]|1[0-2])\s*[/\-.]\s*(\d{4}|\d{2})(?!\d)")
+_AMOUNT = re.compile(r"(?<![\d.,/])(\d[\d,]*\.\d{2}|\d[\d,]*\s*/\s*-)(?!\d)")
+MAX_HEADING_LENGTH = 28
+
+
+def _valid_year(text: str) -> bool:
+    year = int(text)
+    if year < 100:
+        year += 2000
+    return 2015 <= year <= 2045
+
+
+def _date_matches(text: str) -> list:
+    """Month/year dates with a real month and a believable year ('70.00' is not a date)."""
+    found = [m for m in _NAMED_DATE.finditer(text) if _valid_year(m.group(1))]
+    found += [m for m in _NUM_DATE.finditer(text) if _valid_year(m.group(2))]
+    return sorted(found, key=lambda m: m.start())
+
+
+def _amount_matches(text: str) -> list:
+    """Prices such as 70.00 or 289/-, but not unit prices such as 0.70/g (or 0.70/9 when OCR misreads the g)."""
+    found = []
+    for m in _AMOUNT.finditer(text):
+        if re.match(r"\s*/\s*(?!-)[a-z0-9]", text[m.end():m.end() + 4], re.IGNORECASE):
+            continue
+        found.append(m)
+    return found
+
+
+def _pick_by_x(line: dict, matches: list, target_x: float):
+    """When OCR merged a whole row into one line, choose the match that sits closest to the heading."""
+    x1, _, x2, _ = line["bbox"]
+    length = max(len(line["text"]), 1)
+    return min(matches, key=lambda m: abs(x1 + ((m.start() + m.end()) / 2 / length) * (x2 - x1) - target_x))
+
+
+def _below_in_column(lines: list[dict], key_index: int, max_gap_heights: int = 8) -> list:
+    """Lines printed underneath lines[key_index], in the same column, nearest first."""
+    kx1, ky1, kx2, ky2 = lines[key_index]["bbox"]
+    key_h = max(ky2 - ky1, 1)
+    below = []
+    for j, line in enumerate(lines):
+        if j == key_index:
+            continue
+        x1, y1, x2, y2 = line["bbox"]
+        if (y1 + y2) / 2 <= (ky1 + ky2) / 2 + 0.5 * key_h:
+            continue                                   # not clearly underneath
+        if y1 - ky2 > max_gap_heights * key_h:
+            continue                                   # too far down to belong to this heading
+        if min(x2, kx2) - max(x1, kx1) < 0.25 * min(x2 - x1, kx2 - kx1):
+            continue                                   # a different column
+        below.append((y1 - ky2, j))
+    return sorted(below)
+
+
+def _find_mrp_by_column(lines: list[dict]):
+    for i, key in enumerate(lines):
+        if len(key["text"]) > MAX_HEADING_LENGTH or not MRP_HEAD_RE.search(key["text"]):
+            continue
+        heading_x = (key["bbox"][0] + key["bbox"][2]) / 2
+        for _, j in _below_in_column(lines, i):
+            matches = _amount_matches(lines[j]["text"])
+            if matches:
+                pick = _pick_by_x(lines[j], matches, heading_x)
+                field = _make(lines, [i, j])
+                field["value"] = f"{key['text'].strip()} {pick.group(0)}"
+                return field, {i, j}
+    return None
+
+
+def _find_date_by_column(lines: list[dict]):
+    for i, key in enumerate(lines):
+        text = key["text"]
+        if len(text) > MAX_HEADING_LENGTH:
+            continue
+        m = DATE_KEY_RE.search(text)
+        if not m or AFTER_BY_RE.match(text[m.end():]):       # "Mfd. by <company>" is an address
+            continue
+        heading_x = (key["bbox"][0] + key["bbox"][2]) / 2
+        for _, j in _below_in_column(lines, i):
+            matches = _date_matches(lines[j]["text"])
+            if matches:
+                pick = _pick_by_x(lines[j], matches, heading_x)
+                field = _make(lines, [i, j])
+                field["value"] = f"{text.strip()} {pick.group(0)}"
+                return field
+    return None
 
 # ---------- the five finders ----------
 
@@ -148,7 +259,7 @@ def _find_address(lines: list[dict]) -> dict:
         if not MAKER_RE.search(line["text"]):
             continue
         indices, text = [i], line["text"]
-        while not PIN_RE.search(text) and len(indices) < 4 and indices[-1] + 1 < len(lines):
+        while not PIN_RE.search(text) and len(indices) < 5 and indices[-1] + 1 < len(lines):
             nxt = lines[indices[-1] + 1]
             if OTHER_FIELD_RE.search(nxt["text"]) or MAKER_RE.search(nxt["text"]):
                 break
@@ -171,7 +282,7 @@ def _net_missing() -> dict:
 
 
 def _find_net_quantity(lines: list[dict]) -> dict:
-    for indices, text in _windows(lines):
+    for indices, text in _windows(lines, 3):      # "NET VOL." / "WHEN PACKED" / "100ml" can be 3 lines
         m = NET_RE.search(text)
         if m:
             raw_unit = m.group(2).lower().replace(" ", "").replace(".", "")
@@ -191,35 +302,65 @@ def _find_price_line(lines: list[dict]) -> int | None:
         for i, line in enumerate(lines):
             if pattern.search(line["text"]):
                 return i
+    # The rupee symbol is often lost by OCR. If the label has an "MRP (incl. of all taxes)" footnote,
+    # a bare two-decimal amount (e.g. "110.00#08/26" in a coding band) is the price.
+    if any(MRP_WORD_RE.search(l["text"]) and INCL_TAX_RE.search(l["text"]) for l in lines):
+        for i, line in enumerate(lines):
+            if PRICE_DECIMAL_RE.search(line["text"]):
+                return i
     return None
+
+
+def _attach_tax_wording(lines: list[dict], field: dict, used: set) -> None:
+    """If the MRP text lacks 'inclusive of all taxes', look for that wording anywhere on the label
+    (on one line, or split over two neighbouring lines) and add the nearest match."""
+    if INCL_TAX_RE.search(field["value"]):
+        return
+    candidates = [
+        indices for indices, text in _windows(lines)
+        if not used.intersection(indices) and INCL_TAX_RE.search(text)
+    ]
+    if not candidates:
+        return
+
+    mx = (field["bbox"][0] + field["bbox"][2]) / 2
+    my = (field["bbox"][1] + field["bbox"][3]) / 2
+
+    def distance(indices):
+        boxes = [lines[j]["bbox"] for j in indices]
+        cx = (min(b[0] for b in boxes) + max(b[2] for b in boxes)) / 2
+        cy = (min(b[1] for b in boxes) + max(b[3] for b in boxes)) / 2
+        return abs(cx - mx) + abs(cy - my)
+
+    chosen = min(candidates, key=distance)
+    field["value"] += " " + " ".join(lines[j]["text"].strip() for j in chosen)
+    field["confidence"] = round(
+        (field["confidence"] + mean(lines[j]["confidence"] for j in chosen)) / 2, 2)
 
 
 def _find_mrp(lines: list[dict]) -> dict:
     # 1) The normal case: the word MRP followed by an amount
     for indices, text in _windows(lines):
         if MRP_RE.search(text):
-            used = list(indices)
-            if not INCL_TAX_RE.search(text):
-                last = indices[-1]
-                for k in (last + 1, last + 2):    # "(Inclusive of all taxes)" is often on the next line
-                    if k < len(lines) and TAX_HINT_RE.search(lines[k]["text"]):
-                        used.append(k)
-                        break
-            return _make(lines, used)
+            field = _make(lines, indices)
+            _attach_tax_wording(lines, field, set(indices))
+            return field
+
+    # 1b) Table layout: an "MRP" heading with the amount underneath
+    column = _find_mrp_by_column(lines)
+    if column:
+        field, used = column
+        _attach_tax_wording(lines, field, used)
+        return field
 
     # 2) Price printed alone (often in a coding band), with "*MRP (incl. of all taxes)" as a footnote
     price_i = _find_price_line(lines)
     if price_i is None:
         return _missing()
     field = _make(lines, [price_i])               # the box marks the price itself
-    for j, line in enumerate(lines):
-        if j != price_i and INCL_TAX_RE.search(line["text"]):
-            field["value"] += " " + line["text"].strip()
-            field["confidence"] = round((field["confidence"] + line["confidence"]) / 2, 2)
-            break
+    _attach_tax_wording(lines, field, {price_i})
     field["confidence"] = round(field["confidence"] * 0.8, 2)   # less certain: no "MRP" beside the price
     return field
-
 
 def _find_mfg_date(lines: list[dict]) -> dict:
     # 1) The normal case: a keyword such as Mfd / Pkd followed by a date
@@ -228,9 +369,14 @@ def _find_mfg_date(lines: list[dict]) -> dict:
             rest = text[key.end():]
             if AFTER_BY_RE.match(rest):           # "Mfd. by <company>" is an address, not a date
                 continue
-            d = DATE_RE.search(rest[:60])
-            if d and not EXPIRY_RE.search(rest[:d.start()]):   # skip dates that belong to "Exp"
+            dates = _date_matches(rest[:60])     # month and year are validated: "70.00" is not a date
+            if dates and not EXPIRY_RE.search(rest[:dates[0].start()]):   # skip dates that belong to "Exp"
                 return _make(lines, indices)
+
+    # 1b) Table layout: an "MFG. DATE" heading with the date underneath
+    column = _find_date_by_column(lines)
+    if column:
+        return column
 
     # 2) Symbol-marked dates ("#05/26 ... @04/28") explained by a footnote.
     #    Only used when there are at least two different dates, and the earlier one is taken.
@@ -283,6 +429,9 @@ def extract_fields(lines: list[dict]) -> dict:
         "mfg_date": _find_mfg_date(lines),
         "consumer_care": _find_consumer_care(lines),
     }
+
+
+# ---------- used by manual corrections ----------
 
 QTY_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(" + UNIT + "|" + NONSTANDARD + r")\b", re.IGNORECASE)
 

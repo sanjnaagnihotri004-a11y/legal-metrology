@@ -232,3 +232,101 @@ def test_incl_tax_with_ocr_slip():
 ])
 def test_toll_free_variants(text):
     assert extract_fields(lines_of(text))["consumer_care"]["found"] 
+
+# ---------- tax wording found anywhere on the label ----------
+
+def test_tax_wording_on_a_distant_line_is_found():
+    mrp = extract_fields(lines_of(
+        "MUMFALLI 1KG", "M.R.P. 155.00", "RATE", "KESHRI DAILY NEEDS", "Inclusive of all taxes"))["mrp"]
+    assert mrp["found"]
+    assert INCL_TAX_RE.search(mrp["value"])
+
+
+def test_tax_wording_split_over_two_lines():
+    mrp = extract_fields(lines_of("M.R.P. 155.00", "RATE", "Inclusive of", "all taxes"))["mrp"]
+    assert INCL_TAX_RE.search(mrp["value"])
+
+
+def test_no_tax_wording_anywhere_still_fails():
+    mrp = extract_fields(lines_of("M.R.P. 155.00", "RATE", "KESHRI DAILY NEEDS"))["mrp"]
+    assert mrp["found"]
+    assert INCL_TAX_RE.search(mrp["value"]) is None
+
+
+@pytest.mark.parametrize("text", [
+    "Inclusve of all taxes", "Inclu sive of all taxes", "INCLUSIVE OF ALL TAXES", "incl.ofalltaxes",
+])
+def test_ocr_slips_in_tax_wording(text):
+    assert INCL_TAX_RE.search(text)
+
+# ---------- table layouts: heading on top, value underneath (a coding band) ----------
+
+def box_line(text, x1, y1, x2, y2, conf=0.95):
+    return {"text": text, "bbox": [x1, y1, x2, y2], "confidence": conf}
+
+
+def reading_order(lines):
+    return sorted(lines, key=lambda l: (l["bbox"][1], l["bbox"][0]))
+
+
+BAND_HEADINGS = [
+    box_line("MRP \u20b9:", 60, 62, 190, 100),
+    box_line("MFG.", 345, 72, 435, 105),
+    box_line("LOT", 515, 72, 585, 105),
+    box_line("UNIT SALE", 640, 72, 825, 108),
+    box_line("EXPIRY", 885, 72, 1015, 108),
+    box_line("(INCL. OF ALL TAXES)", 58, 105, 282, 135),
+    box_line("DATE", 340, 112, 435, 145),
+    box_line("NO.", 518, 112, 585, 145),
+    box_line("PRICE \u20b9", 660, 112, 800, 150),
+    box_line("DATE", 905, 112, 1000, 150),
+]
+BAND_VALUES_SPLIT = [
+    box_line("70.00", 60, 222, 238, 262),
+    box_line("SEPT.2026", 280, 228, 450, 262),
+    box_line("0926016A", 505, 228, 655, 262),
+    box_line("0.70/9", 708, 228, 818, 262),
+    box_line("AUG.2027", 870, 228, 1015, 262),
+]
+BAND_VALUES_MERGED = [box_line("70.00 SEPT.2026 0926016A 0.70/9 AUG.2027", 60, 225, 1015, 265)]
+
+
+@pytest.mark.parametrize("values", [BAND_VALUES_SPLIT, BAND_VALUES_MERGED])
+def test_coding_band_mrp_and_date_are_found(values):
+    f = extract_fields(reading_order(BAND_HEADINGS + values))
+    assert f["mrp"]["found"]
+    assert "70.00" in f["mrp"]["value"]
+    assert "0.70" not in f["mrp"]["value"].replace("70.00", "")     # the unit price is not the MRP
+    assert INCL_TAX_RE.search(f["mrp"]["value"])
+    assert f["mfg_date"]["found"]
+    assert "SEPT.2026" in f["mfg_date"]["value"]
+    assert "AUG" not in f["mfg_date"]["value"]                      # the expiry column is not used
+
+
+def test_expiry_column_alone_is_not_a_manufacture_date():
+    f = extract_fields(reading_order([
+        box_line("EXPIRY", 885, 72, 1015, 108),
+        box_line("DATE", 905, 112, 1000, 150),
+        box_line("AUG.2027", 870, 228, 1015, 262),
+    ]))
+    assert not f["mfg_date"]["found"]
+
+
+def test_unit_price_under_an_mrp_heading_is_not_the_mrp():
+    f = extract_fields(reading_order([
+        box_line("MRP \u20b9:", 60, 62, 190, 100),
+        box_line("NOTHING HERE", 600, 100, 900, 130),     # keeps the heading and the price apart
+        box_line("0.70/9", 60, 228, 180, 262),
+    ]))
+    assert not f["mrp"]["found"]
+
+
+def test_an_amount_is_not_a_date():
+    f = extract_fields(reading_order([
+        box_line("MFG.", 345, 72, 435, 105),
+        box_line("70.00", 340, 228, 440, 262),
+    ]))
+    assert not f["mfg_date"]["found"]
+
+def test_amount_on_the_same_line_as_a_date_keyword_is_not_a_date():
+    assert not extract_fields(lines_of("Mfd. Rs. 70.00"))["mfg_date"]["found"]

@@ -97,8 +97,8 @@ def apply_font_check(fields: dict, lines: list[dict], image: Image.Image, scale:
         info["note"] = "Net quantity not found, so numeral height could not be checked"
         return info
     if scale is None:
-        info["note"] = ("No scale reference found: place a bank card flat beside the label "
-                        "and retake the photo to check numeral height")
+        info["note"] = ("Label width was not provided, so numeral height could not be checked. "
+                        "Enter the label width in mm and scan again")
         return info
 
     area = estimate_pdp_area_cm2(lines, scale)
