@@ -1,0 +1,81 @@
+﻿filename,rule,expected,app,message
+dates.jpeg,LM-R1,pass,pass,Name and address declared with PIN code
+dates.jpeg,LM-R2,pass,fail,Net quantity not found
+dates.jpeg,LM-R3,pass,pass,MRP declared inclusive of all taxes
+dates.jpeg,LM-R4,pass,fail,Month and year of manufacture/packing/import not found
+dates.jpeg,LM-R5,pass,pass,Consumer care details declared
+dr fixit.jpeg,LM-R1,pass,fail,Manufacturer / packer / importer name and address not found
+dr fixit.jpeg,LM-R2,pass,pass,Net quantity declared: 500 g
+dr fixit.jpeg,LM-R3,pass,fail,MRP found but 'inclusive of all taxes' wording not found
+dr fixit.jpeg,LM-R4,fail,fail,Month and year of manufacture/packing/import not found
+dr fixit.jpeg,LM-R5,pass,fail,Consumer care details (phone or email) not found
+epoxyputti.jpeg,LM-R1,pass,pass,Name and address declared with PIN code
+epoxyputti.jpeg,LM-R2,fail,fail,Net quantity not found
+epoxyputti.jpeg,LM-R3,fail,fail,MRP not found
+epoxyputti.jpeg,LM-R4,fail,fail,Month and year of manufacture/packing/import not found
+epoxyputti.jpeg,LM-R5,pass,pass,Consumer care details declared
+food package.jpg,LM-R1,fail,fail,Manufacturer / packer / importer name and address not found
+food package.jpg,LM-R2,fail,fail,Net quantity not found
+food package.jpg,LM-R3,fail,fail,MRP not found
+food package.jpg,LM-R4,fail,fail,Month and year of manufacture/packing/import not found
+food package.jpg,LM-R5,fail,fail,Consumer care details (phone or email) not found
+jam.jpeg,LM-R1,pass,fail,Manufacturer / packer / importer name and address not found
+jam.jpeg,LM-R2,pass,fail,Net quantity not found
+jam.jpeg,LM-R3,pass,fail,MRP not found
+jam.jpeg,LM-R4,pass,pass,Month and year declared
+jam.jpeg,LM-R5,pass,pass,Consumer care details declared
+joy lotion.jpeg,LM-R1,pass,pass,Name and address declared with PIN code
+joy lotion.jpeg,LM-R2,pass,pass,Net quantity declared: 100 ml
+joy lotion.jpeg,LM-R3,pass,pass,MRP declared inclusive of all taxes
+joy lotion.jpeg,LM-R4,pass,pass,Month and year declared
+joy lotion.jpeg,LM-R5,pass,pass,Consumer care details declared
+lakme facewash.jpeg,LM-R1,pass,pass,Name and address declared with PIN code
+lakme facewash.jpeg,LM-R2,pass,pass,Net quantity declared: 100 g
+lakme facewash.jpeg,LM-R3,pass,pass,MRP declared inclusive of all taxes
+lakme facewash.jpeg,LM-R4,pass,pass,Month and year declared
+lakme facewash.jpeg,LM-R5,pass,pass,Consumer care details declared
+masalabox.jpeg,LM-R1,fail,fail,Manufacturer / packer / importer name and address not found
+masalabox.jpeg,LM-R2,fail,fail,Net quantity not found
+masalabox.jpeg,LM-R3,pass,pass,MRP declared inclusive of all taxes
+masalabox.jpeg,LM-R4,pass,pass,Month and year declared
+masalabox.jpeg,LM-R5,fail,fail,Consumer care details (phone or email) not found
+matchbox.jpeg,LM-R1,pass,pass,Name and address declared with PIN code
+matchbox.jpeg,LM-R2,pass,fail,Net quantity not found
+matchbox.jpeg,LM-R3,pass,pass,MRP declared inclusive of all taxes
+matchbox.jpeg,LM-R4,pass,pass,Month and year declared
+matchbox.jpeg,LM-R5,pass,pass,Consumer care details declared
+mirchi.jpeg,LM-R1,pass,fail,Address found but no 6-digit PIN code detected
+mirchi.jpeg,LM-R2,pass,pass,Net quantity declared: 100 g
+mirchi.jpeg,LM-R3,pass,fail,MRP not found
+mirchi.jpeg,LM-R4,pass,fail,Month and year of manufacture/packing/import not found
+mirchi.jpeg,LM-R5,pass,pass,Consumer care details declared
+moongfali.jpeg,LM-R1,fail,fail,Manufacturer / packer / importer name and address not found
+moongfali.jpeg,LM-R2,fail,fail,Net quantity not found
+moongfali.jpeg,LM-R3,pass,fail,MRP found but 'inclusive of all taxes' wording not found
+moongfali.jpeg,LM-R4,fail,fail,Month and year of manufacture/packing/import not found
+moongfali.jpeg,LM-R5,fail,fail,Consumer care details (phone or email) not found
+olive oil.jpeg,LM-R1,pass,fail,Manufacturer / packer / importer name and address not found
+olive oil.jpeg,LM-R2,pass,fail,Net quantity not found
+olive oil.jpeg,LM-R3,fail,fail,MRP not found
+olive oil.jpeg,LM-R4,fail,fail,Month and year of manufacture/packing/import not found
+olive oil.jpeg,LM-R5,pass,pass,Consumer care details declared
+papad.jpeg,LM-R1,pass,fail,Manufacturer / packer / importer name and address not found
+papad.jpeg,LM-R2,pass,fail,Net quantity not found
+papad.jpeg,LM-R3,pass,pass,MRP declared inclusive of all taxes
+papad.jpeg,LM-R4,pass,pass,Month and year declared
+papad.jpeg,LM-R5,pass,fail,Consumer care details (phone or email) not found
+ponds creme.jpeg,LM-R1,pass,fail,Address found but no 6-digit PIN code detected
+ponds creme.jpeg,LM-R2,pass,fail,Net quantity not found
+ponds creme.jpeg,LM-R3,pass,pass,MRP declared inclusive of all taxes
+ponds creme.jpeg,LM-R4,pass,pass,Month and year declared
+ponds creme.jpeg,LM-R5,pass,pass,Consumer care details declared
+sarso oil.jpeg,LM-R1,fail,fail,Manufacturer / packer / importer name and address not found
+sarso oil.jpeg,LM-R2,fail,fail,Net quantity not found
+sarso oil.jpeg,LM-R3,pass,fail,MRP not found
+sarso oil.jpeg,LM-R4,pass,fail,Month and year of manufacture/packing/import not found
+sarso oil.jpeg,LM-R5,pass,fail,Consumer care details (phone or email) not found
+soyachunks.jpeg,LM-R1,pass,fail,Address found but no 6-digit PIN code detected
+soyachunks.jpeg,LM-R2,pass,fail,Net quantity not found
+soyachunks.jpeg,LM-R3,pass,pass,MRP declared inclusive of all taxes
+soyachunks.jpeg,LM-R4,pass,fail,Month and year of manufacture/packing/import not found
+soyachunks.jpeg,LM-R5,pass,pass,Consumer care details declared

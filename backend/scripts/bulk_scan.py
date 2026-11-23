@@ -58,7 +58,7 @@ def main():
             problem = None
             if not path.exists():
                 problem = "file not found"
-            elif row["category"].strip() not in CATEGORIES:
+            elif row["category"].strip().lower() not in CATEGORIES:
                 problem = f"category must be one of {sorted(CATEGORIES)}"
             if problem:
                 print(f"SKIPPED  {name:<32} {problem}")
@@ -85,7 +85,7 @@ def main():
                     image_bytes=path.read_bytes(),
                     product_name=row["product_name"].strip(),
                     brand=row["brand"].strip(),
-                    category=row["category"].strip(),
+                    category=row["category"].strip().lower(),
                     label_width_mm=width_mm,
                     barcode=(row.get("barcode") or "").strip() or None,
                     notes=None,
